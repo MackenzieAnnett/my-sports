@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Sports">
+<meta name="theme-color" content="#111111">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>My Sports</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#111;--surface:#1c1c1e;--surface2:#2c2c2e;--border:#3a3a3c;
+    --text:#f2f2f7;--muted:#8e8e93;--accent:#30d158;--blue:#0a84ff;
+    --red:#ff453a;--amber:#ffd60a;--radius:14px
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow-x:hidden}
+  body{padding-bottom:80px}
+
+  header{
+    position:sticky;top:0;z-index:100;
+    background:rgba(17,17,17,.85);backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    padding:env(safe-area-inset-top,12px) 16px 12px;
+    border-bottom:0.5px solid var(--border)
+  }
+  .header-inner{display:flex;align-items:center;justify-content:space-between}
+  h1{font-size:22px;font-weight:700;letter-spacing:-.3px}
+  .refresh-btn{
+    width:34px;height:34px;border-radius:50%;background:var(--surface2);
+    border:none;color:var(--text);font-size:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:opacity .15s
+  }
+  .refresh-btn:active{opacity:.6}
+  .refresh-btn.spinning svg{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .last-updated{font-size:11px;color:var(--muted);margin-top:2px}
+
+  nav{display:flex;padding:12px 16px 0;gap:8px;overflow-x:auto;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  .nav-btn{
+    flex-shrink:0;padding:8px 18px;border-radius:20px;border:none;
+    background:var(--surface2);color:var(--muted);font-size:14px;font-weight:500;
+    cursor:pointer;transition:all .15s
+  }
+  .nav-btn.active{background:var(--text);color:var(--bg)}
+
+  main{padding:0 16px}
+
+  .panel{display:none;padding-top:16px}
+  .panel.active{display:block}
+
+  .section-title{
+    font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:20px 0 10px
+  }
+  .section-title:first-child{margin-top:0}
+
+  .card{
+    background:var(--surface);border-radius:var(--radius);
+    margin-bottom:10px;overflow:hidden
+  }
+  .card-inner{padding:14px 16px}
+
+  .match-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .competition{font-size:12px;color:var(--muted)}
+  .badge{
+    font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px
+  }
+  .badge-live{background:rgba(48,209,88,.15);color:var(--accent)}
+  .badge-final{background:var(--surface2);color:var(--muted)}
+  .badge-soon{background:rgba(10,132,255,.15);color:var(--blue)}
+  .badge-next{background:rgba(255,214,10,.15);color:var(--amber)}
+
+  .teams-row{display:flex;align-items:center;gap:0}
+  .team-block{flex:1}
+  .team-name{font-size:16px;font-weight:600}
+  .team-name.away{text-align:right}
+  .score-center{
+    display:flex;align-items:center;gap:6px;padding:0 12px;
+    min-width:80px;justify-content:center
+  }
+  .score-num{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+  .score-sep{font-size:16px;color:var(--muted)}
+
+  .result-text{font-size:13px;color:var(--muted);margin-top:8px}
+  .result-text.win{color:var(--accent)}
+  .result-text.loss{color:var(--red)}
+
+  .innings-row{display:flex;gap:16px;margin-top:8px}
+  .inn{font-size:13px;color:var(--muted)}
+  .inn span{color:var(--text);font-weight:500}
+
+  .kickoff{font-size:13px;color:var(--muted);margin-top:8px}
+  .kickoff strong{color:var(--text)}
+
+  .highlight-card{border:1px solid rgba(255,59,48,.4)}
+
+  .team-hero{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:0.5px solid var(--border)}
+  .team-avatar{
+    width:44px;height:44px;border-radius:50%;display:flex;
+    align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0
+  }
+  .avatar-black{background:#1a1a1a;border:1px solid #333;color:#fff}
+  .avatar-red{background:#c8102e;color:#fff}
+  .avatar-blue{background:#003da5;color:#fff}
+  .hero-title{font-size:17px;font-weight:600}
+  .hero-sub{font-size:13px;color:var(--muted);margin-top:2px}
+  .hero-badge{
+    margin-left:auto;font-size:11px;padding:4px 10px;border-radius:20px;
+    background:var(--surface2);color:var(--muted);white-space:nowrap
+  }
+
+  .loading{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:60px 20px;gap:12px;color:var(--muted);font-size:14px
+  }
+  .spinner{
+    width:28px;height:28px;border:2.5px solid var(--border);
+    border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite
+  }
+  .error-msg{
+    background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.3);
+    border-radius:var(--radius);padding:14px 16px;font-size:14px;color:var(--red);
+    margin-top:16px
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>My Sports</h1>
+      <div class="last-updated" id="lastUpdated">Pull to refresh</div>
+    </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()" aria-label="Refresh">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+    </button>
+  </div>
+  <nav>
+    <button class="nav-btn active" onclick="showPanel('blackcaps',this)">🏏 Blackcaps</button>
+    <button class="nav-btn" onclick="showPanel('crusaders',this)">🏉 Crusaders</button>
+    <button class="nav-btn" onclick="showPanel('dodgers',this)">⚾ Dodgers</button>
+  </nav>
+</header>
+
+<main>
+  <div id="blackcaps" class="panel active"></div>
+  <div id="crusaders" class="panel"></div>
+  <div id="dodgers" class="panel"></div>
+</main>
+
+<script>
+const CORS = 'https://api.allorigins.win/get?url=';
+const NZT = 'Pacific/Auckland';
+
+function fmt(dateStr){
+  try{
+    return new Date(dateStr).toLocaleString('en-NZ',{
+      timeZone:NZT,weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'
+    });
+  }catch(e){return dateStr}
+}
+function fmtDate(dateStr){
+  try{
+    return new Date(dateStr).toLocaleString('en-NZ',{
+      timeZone:NZT,weekday:'short',day:'numeric',month:'short'
+    });
+  }catch(e){return dateStr}
+}
+
+function showPanel(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function setLoading(id){
+  document.getElementById(id).innerHTML=`<div class="loading"><div class="spinner"></div>Loading…</div>`;
+}
+function setError(id,msg){
+  document.getElementById(id).innerHTML=`<div class="error-msg">⚠️ ${msg}</div>`;
+}
+
+async function fetchSportsData(league,team){
+  let url=`https://sports.core.api.espn.com/v2/sports/`;
+  const map={
+    mlb:'baseball/leagues/mlb',
+    cricket:'cricket/leagues/5/',
+    rugby:'rugby/leagues/270559'
+  };
+  // Use ESPN public APIs
+  try{
+    if(league==='mlb'){
+      const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/19/schedule`);
+      if(!r.ok)throw new Error();
+      return await r.json();
+    }
+    if(league==='cricket'){
+      const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/cricket/teams/5/schedule`);
+      if(!r.ok)throw new Error();
+      return await r.json();
+    }
+  }catch(e){return null}
+  return null;
+}
+
+// ---- BLACKCAPS ----
+function renderBlackcaps(){
+  const el=document.getElementById('blackcaps');
+  el.innerHTML=`
+    <div class="card">
+      <div class="team-hero">
+        <div class="team-avatar avatar-black">NZ</div>
+        <div><div class="hero-title">New Zealand Blackcaps</div><div class="hero-sub">Tour of England 2026 · Tests</div></div>
+        <div class="hero-badge">1–0 down</div>
+      </div>
+    </div>
+
+    <div class="section-title">Recent result</div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">1st Test · Lord's, London</span>
+          <span class="badge badge-final">Final</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">England</div></div>
+          <div class="score-center">
+            <span class="score-num">140</span>
+            <span class="score-sep">&amp;</span>
+            <span class="score-num">226</span>
+          </div>
+        </div>
+        <div class="teams-row" style="margin-top:6px">
+          <div class="team-block"><div class="team-name">New Zealand</div></div>
+          <div class="score-center">
+            <span class="score-num">113</span>
+            <span class="score-sep">&amp;</span>
+            <span class="score-num">138</span>
+          </div>
+        </div>
+        <div class="result-text loss">England won by 115 runs · 4–7 June 2026</div>
+        <div class="result-text" style="margin-top:4px">Kyle Jamieson 5/62 (ENG 1st inn)</div>
+      </div>
+    </div>
+
+    <div class="section-title">Upcoming fixtures</div>
+    <div class="card highlight-card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">2nd Test · The Oval, London</span>
+          <span class="badge badge-next">Next up</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">England</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">New Zealand</div></div>
+        </div>
+        <div class="kickoff"><strong>17–21 June 2026</strong> · 11pm NZST start</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">3rd Test · Trent Bridge, Nottingham</span>
+          <span class="badge badge-soon">Upcoming</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">England</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">New Zealand</div></div>
+        </div>
+        <div class="kickoff"><strong>25–29 June 2026</strong> · 11pm NZST start</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">ODI Series (5 matches) · West Indies</span>
+          <span class="badge badge-soon">Upcoming</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">West Indies</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">New Zealand</div></div>
+        </div>
+        <div class="kickoff"><strong>11–21 July 2026</strong> · Providence &amp; Bridgetown</div>
+      </div>
+    </div>
+  `;
+}
+
+// ---- CRUSADERS ----
+function renderCrusaders(){
+  const el=document.getElementById('crusaders');
+  el.innerHTML=`
+    <div class="card">
+      <div class="team-hero">
+        <div class="team-avatar avatar-red">CR</div>
+        <div><div class="hero-title">Crusaders</div><div class="hero-sub">Super Rugby Pacific 2026 · Semi-Final</div></div>
+        <div class="hero-badge">Defending champs</div>
+      </div>
+    </div>
+
+    <div class="section-title">NEXT MATCH — Semi-Final</div>
+    <div class="card highlight-card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Super Rugby Pacific · Semi-Final</span>
+          <span class="badge badge-next">Fri 12 Jun</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Chiefs (2)</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">Crusaders (3)</div></div>
+        </div>
+        <div class="kickoff"><strong>7:05pm NZST</strong> · FMG Stadium, Hamilton</div>
+        <div class="kickoff">Sky Sport NZ · Winner hosts the Grand Final</div>
+      </div>
+    </div>
+
+    <div class="section-title">Recent results</div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Qualifying Final · One NZ Stadium</span>
+          <span class="badge badge-final">Final</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Crusaders</div></div>
+          <div class="score-center">
+            <span class="score-num">52</span>
+            <span class="score-sep">–</span>
+            <span class="score-num">31</span>
+          </div>
+          <div class="team-block"><div class="team-name away">Blues</div></div>
+        </div>
+        <div class="result-text win">Crusaders won · 6 June 2026</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Round 16 · Hnry Stadium, Wellington</span>
+          <span class="badge badge-final">Final</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Hurricanes</div></div>
+          <div class="score-center">
+            <span class="score-num">32</span>
+            <span class="score-sep">–</span>
+            <span class="score-num">36</span>
+          </div>
+          <div class="team-block"><div class="team-name away">Crusaders</div></div>
+        </div>
+        <div class="result-text win">Crusaders won · 29 May 2026</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Round 10 · Apollo Projects Stadium</span>
+          <span class="badge badge-final">Final</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Crusaders</div></div>
+          <div class="score-center">
+            <span class="score-num">69</span>
+            <span class="score-sep">–</span>
+            <span class="score-num">26</span>
+          </div>
+          <div class="team-block"><div class="team-name away">Fijian Drua</div></div>
+        </div>
+        <div class="result-text win">Crusaders won · 3 April 2026</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Round 8 · HBF Park, Perth</span>
+          <span class="badge badge-final">Final</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">W. Force</div></div>
+          <div class="score-center">
+            <span class="score-num">31</span>
+            <span class="score-sep">–</span>
+            <span class="score-num">26</span>
+          </div>
+          <div class="team-block"><div class="team-name away">Crusaders</div></div>
+        </div>
+        <div class="result-text loss">Crusaders lost · 18 April 2026</div>
+      </div>
+    </div>
+  `;
+}
+
+// ---- DODGERS ----
+function renderDodgers(){
+  const el=document.getElementById('dodgers');
+  el.innerHTML=`
+    <div class="card">
+      <div class="team-hero">
+        <div class="team-avatar avatar-blue">LAD</div>
+        <div><div class="hero-title">LA Dodgers</div><div class="hero-sub">MLB 2026</div></div>
+      </div>
+    </div>
+
+    <div class="section-title">In progress now</div>
+    <div class="card" style="border:1px solid rgba(48,209,88,.3)">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">PNC Park, Pittsburgh</span>
+          <span class="badge badge-live">● Live</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Pittsburgh</div></div>
+          <div class="score-center">
+            <span class="score-num">2</span>
+            <span class="score-sep">–</span>
+            <span class="score-num">1</span>
+          </div>
+          <div class="team-block"><div class="team-name away">Dodgers</div></div>
+        </div>
+        <div class="kickoff">Started 10:40am NZST · Wed 10 June</div>
+      </div>
+    </div>
+
+    <div class="section-title">Recent results</div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Dodger Stadium · Sun 7 June</span>
+          <span class="badge badge-final">Final</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Dodgers</div></div>
+          <div class="score-center">
+            <span class="score-num">9</span>
+            <span class="score-sep">–</span>
+            <span class="score-num">2</span>
+          </div>
+          <div class="team-block"><div class="team-name away">LA Angels</div></div>
+        </div>
+        <div class="result-text win">Dodgers won</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Dodger Stadium · Mon 8 June</span>
+          <span class="badge badge-final">Final</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Dodgers</div></div>
+          <div class="score-center">
+            <span class="score-num">5</span>
+            <span class="score-sep">–</span>
+            <span class="score-num">13</span>
+          </div>
+          <div class="team-block"><div class="team-name away">LA Angels</div></div>
+        </div>
+        <div class="result-text loss">Dodgers lost</div>
+      </div>
+    </div>
+
+    <div class="section-title">Upcoming</div>
+    <div class="card highlight-card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">PNC Park, Pittsburgh</span>
+          <span class="badge badge-next">Thu 11 Jun</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Pittsburgh</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">Dodgers</div></div>
+        </div>
+        <div class="kickoff"><strong>10:40am NZST</strong></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">PNC Park, Pittsburgh</span>
+          <span class="badge badge-soon">Fri 12 Jun</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Pittsburgh</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">Dodgers</div></div>
+        </div>
+        <div class="kickoff"><strong>10:40am NZST</strong></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Guaranteed Rate Field, Chicago</span>
+          <span class="badge badge-soon">Sat 13 Jun</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Chicago WSx</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">Dodgers</div></div>
+        </div>
+        <div class="kickoff"><strong>11:40am NZST</strong></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-inner">
+        <div class="match-header">
+          <span class="competition">Guaranteed Rate Field, Chicago</span>
+          <span class="badge badge-soon">Sun 14 Jun</span>
+        </div>
+        <div class="teams-row">
+          <div class="team-block"><div class="team-name">Chicago WSx</div></div>
+          <div class="score-center" style="font-size:20px;color:var(--muted)">vs</div>
+          <div class="team-block"><div class="team-name away">Dodgers</div></div>
+        </div>
+        <div class="kickoff"><strong>8:10am NZST</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+function loadAll(){
+  const btn=document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  document.getElementById('lastUpdated').textContent='Updating…';
+  renderBlackcaps();
+  renderCrusaders();
+  renderDodgers();
+  setTimeout(()=>{
+    btn.classList.remove('spinning');
+    const now=new Date().toLocaleString('en-NZ',{timeZone:NZT,hour:'numeric',minute:'2-digit',day:'numeric',month:'short'});
+    document.getElementById('lastUpdated').textContent=`Updated ${now} NZST`;
+  },800);
+}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+loadAll();
+</script>
+</body>
+</html>
